@@ -1,1 +1,931 @@
-PLACEHOLDER
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tic-Tac-Toe &#8212; AI Vision Player</title>
+ 
+    <!-- html2canvas: captures the board as a PNG and sends it to the vision LLM -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+    </script>
+ 
+    <style type="text/css">
+        /* ============================================================
+           CSS Reset and Base
+        ============================================================ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+ 
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 16px 48px;
+        }
+ 
+        /* ============================================================
+           Header
+        ============================================================ */
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #7c6af7, #54c8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 4px;
+        }
+ 
+        .subtitle {
+            font-size: 0.85rem;
+            color: #6b6b9a;
+            margin-bottom: 28px;
+            letter-spacing: 0.03em;
+        }
+ 
+        /* ============================================================
+           Settings Panel
+        ============================================================ */
+        .settings-panel {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 16px 20px;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 24px;
+        }
+ 
+        .settings-panel summary {
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #7c6af7;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+        }
+ 
+        .settings-panel summary::before {
+            content: '&#9654;';
+            font-size: 0.65rem;
+            transition: transform 0.2s;
+        }
+ 
+        .settings-panel[open] summary::before {
+            transform: rotate(90deg);
+        }
+ 
+        .settings-body {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+ 
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+ 
+        .field-group label {
+            font-size: 0.75rem;
+            color: #8888bb;
+            font-weight: 500;
+        }
+ 
+        .field-group input,
+        .field-group select {
+            background: #0f0f1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 7px;
+            color: #e0e0f0;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+ 
+        .field-group input:focus,
+        .field-group select:focus {
+            border-color: #7c6af7;
+        }
+ 
+        .field-group select option {
+            background: #1a1a2e;
+        }
+ 
+        .settings-hint {
+            font-size: 0.72rem;
+            color: #55557a;
+            line-height: 1.5;
+        }
+ 
+        /* ============================================================
+           Status Bar
+        ============================================================ */
+        #status-bar {
+            width: 100%;
+            max-width: 480px;
+            min-height: 44px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+ 
+        #status-bar.info    { border-color: #2a2a4a; color: #b0b0d0; }
+        #status-bar.ai      { border-color: #7c6af7; color: #c8b8ff; }
+        #status-bar.player  { border-color: #54c8f0; color: #a8eaff; }
+        #status-bar.win     { border-color: #5cf0a0; color: #9effd0; }
+        #status-bar.draw    { border-color: #f0c05c; color: #ffe0a0; }
+        #status-bar.error   { border-color: #f05c7c; color: #ffb0c0; }
+ 
+        .status-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+ 
+        /* ============================================================
+           Score Board
+        ============================================================ */
+        .scoreboard {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+ 
+        .score-card {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 10px;
+            padding: 10px 22px;
+            text-align: center;
+            min-width: 80px;
+        }
+ 
+        .score-card .label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #55557a;
+        }
+ 
+        .score-card .value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+ 
+        .score-card.player .value { color: #54c8f0; }
+        .score-card.ai     .value { color: #7c6af7; }
+        .score-card.draw   .value { color: #f0c05c; }
+ 
+        /* ============================================================
+           Game Board
+        ============================================================ */
+        #board-wrapper {
+            position: relative;
+            margin-bottom: 24px;
+        }
+ 
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            grid-template-rows:    repeat(3, 120px);
+            gap: 0;
+            background: #1a1a2e;
+            border: 2px solid #2a2a4a;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(124, 106, 247, 0.15);
+        }
+ 
+        /* Inner grid lines via borders on each cell */
+        .cell {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-right: 2px solid #2a2a4a;
+            border-bottom: 2px solid #2a2a4a;
+            position: relative;
+            transition: background 0.15s;
+            font-size: 3rem;
+            font-weight: 900;
+            user-select: none;
+        }
+ 
+        .cell:nth-child(3n)   { border-right: none; }
+        .cell:nth-child(n+7)  { border-bottom: none; }
+ 
+        .cell:hover:not(.taken):not(.disabled) {
+            background: rgba(124, 106, 247, 0.08);
+            cursor: pointer;
+        }
+ 
+        .cell.taken   { cursor: default; }
+        .cell.disabled { cursor: not-allowed; }
+ 
+        /* X mark */
+        .cell.x::before,
+        .cell.x::after {
+            content: '';
+            position: absolute;
+            width: 64px;
+            height: 6px;
+            background: #54c8f0;
+            border-radius: 3px;
+            box-shadow: 0 0 12px rgba(84, 200, 240, 0.6);
+        }
+        .cell.x::before { transform: rotate(45deg); }
+        .cell.x::after  { transform: rotate(-45deg); }
+ 
+        /* O mark */
+        .cell.o::before {
+            content: '';
+            position: absolute;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 6px solid #7c6af7;
+            box-shadow: 0 0 12px rgba(124, 106, 247, 0.6);
+        }
+ 
+        /* Winning cells glow */
+        .cell.win-x::before,
+        .cell.win-x::after {
+            background: #00f0a0;
+            box-shadow: 0 0 20px rgba(0, 240, 160, 0.8);
+        }
+        .cell.win-o::before {
+            border-color: #00f0a0;
+            box-shadow: 0 0 20px rgba(0, 240, 160, 0.8);
+        }
+ 
+        /* AI thinking overlay */
+        #thinking-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 15, 26, 0.6);
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+            backdrop-filter: blur(2px);
+        }
+ 
+        #thinking-overlay.active {
+            display: flex;
+        }
+ 
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #2a2a4a;
+            border-top-color: #7c6af7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+ 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+ 
+        .thinking-label {
+            font-size: 0.8rem;
+            color: #c8b8ff;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+ 
+        /* ============================================================
+           Captured Preview (last screenshot sent to LLM)
+        ============================================================ */
+        #preview-section {
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 20px;
+            display: none;
+        }
+ 
+        #preview-section.visible {
+            display: block;
+        }
+ 
+        .preview-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #55557a;
+            margin-bottom: 8px;
+        }
+ 
+        #preview-img {
+            width: 140px;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            opacity: 0.8;
+        }
+ 
+        #llm-response-box {
+            margin-top: 8px;
+            background: #0f0f1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            color: #8888bb;
+            font-family: 'Courier New', monospace;
+            max-height: 80px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+ 
+        /* ============================================================
+           Buttons
+        ============================================================ */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+        }
+ 
+        button {
+            background: linear-gradient(135deg, #7c6af7, #54c8f0);
+            border: none;
+            border-radius: 9px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            padding: 11px 24px;
+            text-transform: uppercase;
+            transition: opacity 0.15s, transform 0.1s;
+        }
+ 
+        button:hover  { opacity: 0.88; }
+        button:active { transform: scale(0.97); }
+ 
+        button.secondary {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            color: #8888bb;
+        }
+ 
+        button.secondary:hover { border-color: #7c6af7; color: #c8b8ff; }
+    </style>
+</head>
+<body>
+ 
+    <h1>Tic-Tac-Toe</h1>
+    <p class="subtitle">You vs. Local AI Vision Model (LM Studio)</p>
+ 
+    <!-- ============================================================
+         Settings Panel
+    ============================================================ -->
+    <details id="settings-panel" class="settings-panel">
+        <summary>LM Studio Settings</summary>
+        <div class="settings-body">
+            <div class="field-group">
+                <label for="lm-url">LM Studio API Base URL</label>
+                <input type="text" id="lm-url"
+                    value="http://localhost:1234/v1"
+                    placeholder="http://localhost:1234/v1" />
+            </div>
+            <div class="field-group">
+                <label for="lm-model">Model Identifier</label>
+                <input type="text" id="lm-model"
+                    value="local-model"
+                    placeholder="local-model (or exact model name)" />
+            </div>
+            <div class="field-group">
+                <label for="lm-temp">Temperature</label>
+                <input type="number" id="lm-temp"
+                    value="0.1" min="0" max="2" step="0.05" />
+            </div>
+            <p class="settings-hint">
+                Make sure LM Studio is running and a <strong>vision-capable</strong> model is loaded
+                (e.g. LLaVA, BakLLaVA, MiniCPM-V, Qwen2-VL, etc.).<br />
+                Enable <em>Local Server</em> in LM Studio and allow CORS.
+            </p>
+        </div>
+    </details>
+ 
+    <!-- ============================================================
+         Status Bar
+    ============================================================ -->
+    <div id="status-bar" class="info">
+        <span class="status-icon" id="status-icon">&#128736;</span>
+        <span id="status-text">Your turn &#8212; click a cell to place X</span>
+    </div>
+ 
+    <!-- ============================================================
+         Score Board
+    ============================================================ -->
+    <div class="scoreboard">
+        <div class="score-card player">
+            <div class="label">You (X)</div>
+            <div class="value" id="score-player">0</div>
+        </div>
+        <div class="score-card draw">
+            <div class="label">Draw</div>
+            <div class="value" id="score-draw">0</div>
+        </div>
+        <div class="score-card ai">
+            <div class="label">AI (O)</div>
+            <div class="value" id="score-ai">0</div>
+        </div>
+    </div>
+ 
+    <!-- ============================================================
+         Game Board
+    ============================================================ -->
+    <div id="board-wrapper">
+        <div id="board">
+            <!-- 9 cells: data-row and data-col identify each position -->
+            <div class="cell" data-row="0" data-col="0"></div>
+            <div class="cell" data-row="0" data-col="1"></div>
+            <div class="cell" data-row="0" data-col="2"></div>
+            <div class="cell" data-row="1" data-col="0"></div>
+            <div class="cell" data-row="1" data-col="1"></div>
+            <div class="cell" data-row="1" data-col="2"></div>
+            <div class="cell" data-row="2" data-col="0"></div>
+            <div class="cell" data-row="2" data-col="1"></div>
+            <div class="cell" data-row="2" data-col="2"></div>
+        </div>
+ 
+        <!-- Shown while waiting for the LLM response -->
+        <div id="thinking-overlay">
+            <div class="spinner"></div>
+            <div class="thinking-label">AI is thinking&#8230;</div>
+        </div>
+    </div>
+ 
+    <!-- ============================================================
+         Buttons
+    ============================================================ -->
+    <div class="btn-row">
+        <button type="button" id="btn-new-game">New Game</button>
+        <button type="button" id="btn-reset-scores" class="secondary">Reset Scores</button>
+    </div>
+ 
+    <!-- ============================================================
+         Debug / Preview Section
+         Shows the last screenshot sent to the LLM and the raw response
+    ============================================================ -->
+    <div id="preview-section">
+        <p class="preview-label">Last screenshot sent to LLM</p>
+        <img id="preview-img" src="" alt="Board screenshot" />
+        <div id="llm-response-box">&#8212;</div>
+    </div>
+ 
+    <!-- ============================================================
+         JavaScript – Game Logic + Vision LLM Integration
+    ============================================================ -->
+    <script type="text/javascript">
+    //<![CDATA[
+ 
+    // ----------------------------------------------------------------
+    // SYSTEM PROMPT
+    // Sent to the vision LLM on every turn to explain the rules and
+    // the required response format.
+    // ----------------------------------------------------------------
+var SYSTEM_PROMPT = [
+"You are a deterministic Tic-Tac-Toe engine.",
+"You play as \"O\".",
+"The opponent plays as \"X\".",
+"",
+"STRICT RULES (HARD CONSTRAINTS):",
+"- You MUST ONLY choose a cell that is EMPTY.",
+"- NEVER select a cell that already contains \"X\" or \"O\".",
+"- NEVER output an invalid coordinate.",
+"- If you cannot find an empty cell, output:",
+"  {\"error\":\"no_valid_moves\"}",
+"",
+"BOARD:",
+"- 3x3 grid",
+"- Coordinates are (row, col), zero-indexed:",
+"  (0,0) (0,1) (0,2)",
+"  (1,0) (1,1) (1,2)",
+"  (2,0) (2,1) (2,2)",
+"",
+"INPUT UNDERSTANDING:",
+"- You are given a visual board.",
+"- You MUST internally convert it into a list of:",
+"  - occupied cells (X and O)",
+"  - empty cells",
+"",
+"MANDATORY DECISION PROCESS:",
+"1. List ALL empty cells.",
+"2. REMOVE all occupied cells from consideration.",
+"3. From the remaining valid cells ONLY, choose a move.",
+"",
+"STRATEGY (only after validation):",
+"1. Win if possible.",
+"2. Block opponent win.",
+"3. Take center if free.",
+"4. Take corner if free.",
+"5. Otherwise take any remaining valid cell.",
+"",
+"CRITICAL BLOCKING RULE (HARD):",
+"- You MUST check if X can win in the next move.",
+"- If X has two in a row with one empty cell, you MUST place O in that cell.",
+"- This rule OVERRIDES all other strategy.",
+"",
+"FINAL SELF-CHECK (REQUIRED):",
+"Before answering, verify:",
+"- The selected (row,col) is NOT occupied.",
+"- The selected (row,col) is within [0-2].",
+"",
+"If this check fails, choose another move.",
+"",
+"OUTPUT FORMAT (STRICT JSON ONLY):",
+"{\"row\": <0-2>, \"col\": <0-2>}"
+].join("\n");
+ 
+    // ----------------------------------------------------------------
+    // Game State
+    // ----------------------------------------------------------------
+    var board      = [["","",""],["","",""],["","",""]]; // "" | "x" | "o"
+    var gameOver   = false;
+    var playerTurn = true; // true = human (X), false = AI (O)
+    var scores     = { player: 0, ai: 0, draw: 0 };
+ 
+    // Win combinations: arrays of [row,col] triples
+    var WIN_LINES = [
+        [[0,0],[0,1],[0,2]], // rows
+        [[1,0],[1,1],[1,2]],
+        [[2,0],[2,1],[2,2]],
+        [[0,0],[1,0],[2,0]], // columns
+        [[0,1],[1,1],[2,1]],
+        [[0,2],[1,2],[2,2]],
+        [[0,0],[1,1],[2,2]], // diagonals
+        [[0,2],[1,1],[2,0]]
+    ];
+ 
+    // ----------------------------------------------------------------
+    // DOM Helpers
+    // ----------------------------------------------------------------
+    function cellEl(row, col) {
+        return document.querySelector(
+            '.cell[data-row="' + row + '"][data-col="' + col + '"]'
+        );
+    }
+ 
+    function setStatus(text, type, icon) {
+        var bar  = document.getElementById("status-bar");
+        var txt  = document.getElementById("status-text");
+        var ico  = document.getElementById("status-icon");
+        bar.className = type || "info";
+        txt.innerHTML = text;
+        ico.innerHTML = icon || "&#128736;";
+    }
+ 
+    function updateScoreDisplay() {
+        document.getElementById("score-player").innerHTML = scores.player;
+        document.getElementById("score-ai").innerHTML     = scores.ai;
+        document.getElementById("score-draw").innerHTML   = scores.draw;
+    }
+ 
+    function setBoardDisabled(disabled) {
+        var cells = document.querySelectorAll(".cell");
+        for (var i = 0; i < cells.length; i++) {
+            if (disabled) {
+                cells[i].classList.add("disabled");
+            } else {
+                cells[i].classList.remove("disabled");
+            }
+        }
+    }
+ 
+    function showThinking(visible) {
+        var overlay = document.getElementById("thinking-overlay");
+        if (visible) {
+            overlay.classList.add("active");
+        } else {
+            overlay.classList.remove("active");
+        }
+    }
+ 
+    // ----------------------------------------------------------------
+    // Check win / draw
+    // Returns { winner: "x"|"o"|null, line: [...] | null }
+    // ----------------------------------------------------------------
+    function checkResult() {
+        for (var i = 0; i < WIN_LINES.length; i++) {
+            var line = WIN_LINES[i];
+            var a = board[line[0][0]][line[0][1]];
+            var b = board[line[1][0]][line[1][1]];
+            var c = board[line[2][0]][line[2][1]];
+            if (a && a === b && b === c) {
+                return { winner: a, line: line };
+            }
+        }
+        // Check for draw (all cells filled)
+        for (var r = 0; r < 3; r++) {
+            for (var c = 0; c < 3; c++) {
+                if (!board[r][c]) {
+                    return { winner: null, line: null }; // game still on
+                }
+            }
+        }
+        return { winner: "draw", line: null };
+    }
+ 
+    // ----------------------------------------------------------------
+    // Apply a mark to the board and DOM
+    // ----------------------------------------------------------------
+    function applyMove(row, col, mark) {
+        board[row][col] = mark;
+        var el = cellEl(row, col);
+        el.classList.add(mark);
+        el.classList.add("taken");
+    }
+ 
+    // ----------------------------------------------------------------
+    // Handle end-of-game: highlight winning cells, update scores
+    // ----------------------------------------------------------------
+    function handleGameOver(result) {
+        gameOver = true;
+        setBoardDisabled(true);
+ 
+        if (result.winner === "x") {
+            // Highlight winning cells
+            for (var i = 0; i < result.line.length; i++) {
+                cellEl(result.line[i][0], result.line[i][1]).classList.add("win-x");
+            }
+            scores.player++;
+            updateScoreDisplay();
+            setStatus("You win! &#127881; Great move!", "win", "&#127881;");
+        } else if (result.winner === "o") {
+            for (var i = 0; i < result.line.length; i++) {
+                cellEl(result.line[i][0], result.line[i][1]).classList.add("win-o");
+            }
+            scores.ai++;
+            updateScoreDisplay();
+            setStatus("AI wins this round! &#129302; Try again.", "ai", "&#129302;");
+        } else {
+            scores.draw++;
+            updateScoreDisplay();
+            setStatus("It's a draw! &#129300; Well played.", "draw", "&#129300;");
+        }
+    }
+ 
+    // ----------------------------------------------------------------
+    // Capture the board as a base-64 PNG using html2canvas
+    // ----------------------------------------------------------------
+    function captureBoard() {
+        var boardEl = document.getElementById("board");
+        return html2canvas(boardEl, {
+            backgroundColor: "#1a1a2e",
+            scale: 1.5, // slightly higher resolution for the vision model
+            useCORS: true,
+            logging: false
+        }).then(function(canvas) {
+            return canvas.toDataURL("image/png");
+        });
+    }
+ 
+    // ----------------------------------------------------------------
+    // Call LM Studio Vision API
+    // Sends the board screenshot and returns a parsed {row, col} object
+    // ----------------------------------------------------------------
+    function callLMStudio(imageDataUrl) {
+        var baseUrl   = document.getElementById("lm-url").value.replace(/\/$/, "");
+        var modelId   = document.getElementById("lm-model").value.trim() || "local-model";
+        var temp      = parseFloat(document.getElementById("lm-temp").value) || 0.1;
+        var endpoint  = baseUrl + "/chat/completions";
+ 
+        var payload = {
+            model: modelId,
+            temperature: temp,
+            max_tokens: 64,
+            messages: [
+                {
+                    role: "system",
+                    content: SYSTEM_PROMPT
+                },
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: imageDataUrl,
+                                detail: "high"
+                            }
+                        },
+                        {
+                            type: "text",
+                            text: "Look at the board. Choose your best move as O. Reply with JSON only: {\"row\": <0-2>, \"col\": <0-2>}"
+                        }
+                    ]
+                }
+            ]
+        };
+ 
+        return fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }).then(function(res) {
+            if (!res.ok) {
+                return res.text().then(function(t) {
+                    throw new Error("HTTP " + res.status + ": " + t);
+                });
+            }
+            return res.json();
+        }).then(function(data) {
+            // Show raw response in the debug box
+            var raw = data.choices && data.choices[0] && data.choices[0].message
+                ? data.choices[0].message.content
+                : JSON.stringify(data);
+ 
+            document.getElementById("llm-response-box").innerHTML =
+                "Raw LLM response:\n" + raw;
+            document.getElementById("preview-section").classList.add("visible");
+ 
+            // Extract JSON from the response (the model may add extra text)
+            var jsonMatch = raw.match(/\{[^}]*"row"[^}]*"col"[^}]*\}/);
+            if (!jsonMatch) {
+                // Try the other field order
+                jsonMatch = raw.match(/\{[^}]*"col"[^}]*"row"[^}]*\}/);
+            }
+            if (!jsonMatch) {
+                throw new Error("No valid JSON found in response: " + raw);
+            }
+            var move = JSON.parse(jsonMatch[0]);
+            var row = parseInt(move.row, 10);
+            var col = parseInt(move.col, 10);
+
+            // Some vision models reply with 1-indexed coordinates (1-3)
+            // instead of 0-indexed (0-2). Auto-correct this common mistake.
+            if (row >= 1 && row <= 3 && col >= 1 && col <= 3) {
+                var zeroRow = row - 1;
+                var zeroCol = col - 1;
+                if ((row > 2 || col > 2 || board[row][col] !== "") &&
+                    zeroRow >= 0 && zeroRow <= 2 && zeroCol >= 0 && zeroCol <= 2 &&
+                    board[zeroRow][zeroCol] === "") {
+                    console.log("Auto-correcting 1-indexed (" + row + "," + col +
+                        ") to 0-indexed (" + zeroRow + "," + zeroCol + ")");
+                    row = zeroRow;
+                    col = zeroCol;
+                }
+            }
+
+            if (isNaN(row) || isNaN(col) || row < 0 || row > 2 || col < 0 || col > 2) {
+                throw new Error("Move out of bounds: row=" + row + " col=" + col);
+            }
+            if (board[row][col] !== "") {
+                throw new Error("Cell (" + row + "," + col + ") is already occupied!");
+            }
+            return { row: row, col: col };
+        });
+    }
+ 
+    // ----------------------------------------------------------------
+    // AI Turn: capture → send to LLM → apply move
+    // ----------------------------------------------------------------
+    function aiTurn() {
+        showThinking(true);
+        setBoardDisabled(true);
+        setStatus("AI is analysing the board&#8230;", "ai", "&#129302;");
+ 
+        captureBoard().then(function(imgData) {
+            // Show thumbnail
+            document.getElementById("preview-img").src = imgData;
+            document.getElementById("preview-section").classList.add("visible");
+ 
+            return callLMStudio(imgData);
+        }).then(function(move) {
+            showThinking(false);
+            applyMove(move.row, move.col, "o");
+ 
+            var result = checkResult();
+            if (result.winner) {
+                handleGameOver(result);
+            } else {
+                playerTurn = true;
+                setBoardDisabled(false);
+                setStatus("Your turn &#8212; click a cell to place X", "player", "&#128100;");
+            }
+        }).catch(function(err) {
+            showThinking(false);
+            setBoardDisabled(false);
+ 
+            console.error("LM Studio error:", err);
+            setStatus(
+                "LLM error: " + err.message +
+                " &#8212; Check LM Studio is running and CORS is enabled.",
+                "error", "&#9888;"
+            );
+ 
+            // Return turn to player so the game is not stuck
+            playerTurn = true;
+        });
+    }
+ 
+    // ----------------------------------------------------------------
+    // Player click handler
+    // ----------------------------------------------------------------
+    function onCellClick(e) {
+        if (gameOver || !playerTurn) { return; }
+ 
+        var el  = e.currentTarget;
+        var row = parseInt(el.getAttribute("data-row"), 10);
+        var col = parseInt(el.getAttribute("data-col"), 10);
+ 
+        if (board[row][col] !== "") { return; } // cell occupied
+ 
+        applyMove(row, col, "x");
+ 
+        var result = checkResult();
+        if (result.winner) {
+            handleGameOver(result);
+            return;
+        }
+ 
+        // Hand over to AI
+        playerTurn = false;
+        aiTurn();
+    }
+ 
+    // ----------------------------------------------------------------
+    // New Game
+    // ----------------------------------------------------------------
+    function newGame() {
+        board       = [["","",""],["","",""],["","",""]];
+        gameOver    = false;
+        playerTurn  = true;
+ 
+        // Reset cell classes (keep only 'cell')
+        var cells = document.querySelectorAll(".cell");
+        for (var i = 0; i < cells.length; i++) {
+            cells[i].className = "cell";
+        }
+ 
+        showThinking(false);
+        setBoardDisabled(false);
+        setStatus("Your turn &#8212; click a cell to place X", "player", "&#128100;");
+    }
+ 
+    // ----------------------------------------------------------------
+    // Wire up events
+    // ----------------------------------------------------------------
+    (function init() {
+        // Cell clicks
+        var cells = document.querySelectorAll(".cell");
+        for (var i = 0; i < cells.length; i++) {
+            cells[i].addEventListener("click", onCellClick);
+        }
+ 
+        document.getElementById("btn-new-game").addEventListener("click", newGame);
+ 
+        document.getElementById("btn-reset-scores").addEventListener("click", function() {
+            scores = { player: 0, ai: 0, draw: 0 };
+            updateScoreDisplay();
+        });
+ 
+        // Initial status
+        setStatus("Your turn &#8212; click a cell to place X", "player", "&#128100;");
+    }());
+ 
+    //]]>
+    </script>
+ 
+</body>
+</html>
