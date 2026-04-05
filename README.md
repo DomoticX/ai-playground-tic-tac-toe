@@ -1,5 +1,7 @@
 # Tic-Tac-Toe — AI Vision Player
 
+![Tic-Tac-Toe AI Vision Player](Tic-Tac-Toe_AI_Vision_Player_ai_generated.jpg)
+
 A single-file browser game where you play Tic-Tac-Toe against a **local vision LLM** running in [LM Studio](https://lmstudio.ai).  
 After every human move the game captures a **screenshot of the board**, sends it to the model, and the model replies with JSON specifying its next move.
 
